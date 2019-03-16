@@ -45,7 +45,7 @@ def FormatStockData(stockdata):
     stocklive = {}
     for stock in stockdata:
         stocklive[stock['symbol']] = {'LTP':stock['ltP'].replace(',',''),'PCT':stock['per'].replace(',',''),
-                                      'OPEN':stock['open'].replace(',',''),'HIGH':stock['high'],
+                                      'OPEN':stock['open'].replace(',',''),'HIGH':stock['high'].replace(',',''),
                                       'LOW':stock['low'].replace(',',''),'VOL':str(int(float(stock['trdVol'].replace(',',''))*100000))}
     return stocklive
 
@@ -133,8 +133,12 @@ def process_stocks_volAVG(stocksval1):
     stocksval2 = {}
     for stock in stocksval1.items():
         stockAVGVol = getHistoricDataNSEweek(stock[0])
-        #print(stock[0],int(stock[1]['VOL']),'>', stockAVGVol)
-        if (int(stock[1]['VOL'])*100)/stockAVGVol >= BUYVOLPERCENT:
+        if stockAVGVol == 0:
+            STOCKPCTVOLAVG = 0
+        else:
+            STOCKPCTVOLAVG = (int(stock[1]['VOL'])*100)/stockAVGVol
+            
+        if STOCKPCTVOLAVG >= BUYVOLPERCENT:
             stocksval2[stock[0]] = stock[1]
     return stocksval2
 
@@ -144,7 +148,6 @@ def process_quora_algo():
         stocklive = getLiveQuotes()
         stocksval1 = process_stocks_pct(stocklive)
         #print('-------------------------1:',stocksval1)
-        #stockvalREM = {k:v for k,v in stocksval1.items() if k not in stocksFINAL}
         stocksval2tmp = process_stocks_volAVG(stocksval1)
         #print('-------------------------2:',stocksval1)
         return stocksval2tmp
@@ -181,23 +184,28 @@ def findAVGPrice(stock):
         return '0'
 
 def PrettyPrint(stocks):
-    for stockkey,stockval in stocks.items():
-        #print('                          ',stockkey,'LTP:',stockval['LTP'],'HIGH:',stockval['HIGH'],'LOW:',stockval['LOW'])
-        print('                          ',stockkey,'=>',stockval)
+    try:
+        for stockkey,stockval in stocks.items():
+            #print('                           ',stockkey,'=>',stockval)
+            print(' ',stockkey,'=>',stockval)
+    except:
+        print(traceback.format_exc())
+
               
 stocksFINAL,stocksTOBUY,stocksBUY,stocksSELL = {},{},{},{}
-VALTIME = '09:28'
-MONITORTIME = '09:30'
+VALTIME ='20:00' #'09:28'
+MONITORTIME = '23:35' #'09:30'
+MONITORTILL = '23:50'#'15:15'
 
 if monitorTimes('09:15','15:15'):
     print(datetime.datetime.now(),'Market Open.')
 if monitorTimes('00:00','09:14') or monitorTimes('15:15','23:59'):
     print(datetime.datetime.now(),'Market Closed.')
 
-time.sleep(27000)    
+stockREMBUY,stockREMSELL,stocksFINALtmp,stocksFINALREM, MYSTOCKS = {},{},{},{},{}
+#time.sleep(22000)    
 while 1:
-    print(datetime.datetime.now(),'-----------------------------------')
-    stockREMBUY,stockREMSELL,stocksFINALtmp,stocksFINALREM = {},{},{},{}   
+    print(datetime.datetime.now(),'-----------------------------------')  
 	
     if monitorTimes(VALTIME,MONITORTIME):
         print(datetime.datetime.now(),'Finding Stocks to Buy.')
@@ -206,26 +214,33 @@ while 1:
         stocksFINAL.update(stocksFINALtmp)     
         if len(stocksFINALREM) > 0:
             stocksFINALREM = UpdateLiveQuotes(stocksFINALREM)
-            for stock in stocksFINALREM.items():            
+            for stock in stocksFINALREM.items():
                 stocksTOBUY[stock[0]] = {'LTP':stock[1]['LTP'],'OPEN':stock[1]['OPEN'],'HIGH':stock[1]['HIGH'],'STOPLOSS':findAVGPrice(stock[0])}
             PrettyPrint(stocksTOBUY)
+            stockREMBUY = stocksTOBUY
         else:
             print(datetime.datetime.now(),'No Stocks to buy.')
             
-    if monitorTimes(MONITORTIME,'15:15'):
-        print(datetime.datetime.now(),'-----------Monitoring-----------')
+    if monitorTimes(MONITORTIME,MONITORTILL):
+        print(datetime.datetime.now(),'------------Monitoring-------------')
         ##BUY
         stockREMBUY = UpdateLiveQuotes(stockREMBUY)
-        PrettyPrint(stockREMBUY)
+        #PrettyPrint(stockREMBUY)
         for stock in stockREMBUY.items():
             if float(stock[1]['LTP']) >= float(stock[1]['HIGH']):
                 print(datetime.datetime.now(),'BUYING')
                 PrettyPrint(stock)
                 stockREMBUY.pop(stock)
+                stockREMSELL.update(stock)
+                MYSTOCKS = {}
         ##SELL
         stockREMSELL = UpdateLiveQuotes(stockREMSELL)
-        PrettyPrint(stock)
+        #PrettyPrint(stockREMSELL)
         for stock in stockREMSELL.items():                
+            if float(stock[1]['LTP']) >= float(findAVGPrice(stock[0])):
+                print(datetime.datetime.now(),'SELLING')
+                PrettyPrint(stock)
+                stockREMSELL.pop(stock)
             if float(stock[1]['LTP']) >= float(findAVGPrice(stock[0])):
                 print(datetime.datetime.now(),'SELLING')
                 PrettyPrint(stock)
