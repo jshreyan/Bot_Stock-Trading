@@ -13,7 +13,7 @@ start = time.time()
 def getLiveQuotes():
     stocklive = {}
     try:
-        url = "https://www.nseindia.com/live_market/dynaContent/live_watch/stock_watch/niftyStockWatch.json"
+        url = "https://www1.nseindia.com/live_market/dynaContent/live_watch/stock_watch/niftyStockWatch.json"
         resp = session.get(url,headers=headers)
         json_data = resp.json()
         resp.close()        
@@ -27,7 +27,7 @@ def getLiveQuotes():
 def UpdateLiveQuotes(updatestocks):
     stocklive = {}
     try:
-        url = "https://www.nseindia.com/live_market/dynaContent/live_watch/stock_watch/niftyStockWatch.json"
+        url = "https://www1.nseindia.com/live_market/dynaContent/live_watch/stock_watch/niftyStockWatch.json"
         resp = session.get(url,headers=headers)
         json_data = resp.json()
         resp.close()        
@@ -51,7 +51,7 @@ def FormatStockData(stockdata):
 def getHistoricDataNSE(stock):
     stockHist = {}
     try:
-        url = "https://www.nseindia.com/live_market/dynaContent/live_watch/get_quote/getHistoricalData.jsp?symbol="+stock+"&series=EQ&fromDate=undefined&toDate=undefined&datePeriod=1day"
+        url = "https://www1.nseindia.com/live_market/dynaContent/live_watch/get_quote/getHistoricalData.jsp?symbol="+stock+"&series=EQ&fromDate=undefined&toDate=undefined&datePeriod=1day"
         resp = session.get(url, headers=headers)
         page_html = resp.text
         resp.close()        
@@ -71,7 +71,7 @@ def getHistoricDataNSE(stock):
 def getHistoricDataNSEweek(stock):
     stockdataWeek = []
     try:
-        url = "https://www.nseindia.com/live_market/dynaContent/live_watch/get_quote/getHistoricalData.jsp?symbol="+stock+"&series=EQ&fromDate=undefined&toDate=undefined&datePeriod=week"
+        url = "https://www1.nseindia.com/live_market/dynaContent/live_watch/get_quote/getHistoricalData.jsp?symbol="+stock+"&series=EQ&fromDate=undefined&toDate=undefined&datePeriod=week"
         resp = session.get(url, headers=headers)
         page_html = resp.text
         resp.close()        
@@ -116,7 +116,7 @@ def process_ohl_algo():
 
 def findAVGPrice(stock):
     try:
-        url = "https://www.nseindia.com/live_market/dynaContent/live_watch/get_quote/GetQuote.jsp?symbol="+stock
+        url = "https://www1.nseindia.com/live_market/dynaContent/live_watch/get_quote/GetQuote.jsp?symbol="+stock
         resp = session.get(url, headers=headers)
         req_html = resp.text
         resp.close() 
