@@ -90,6 +90,16 @@ def getPreviousDayData(session,stock):
         print(traceback.format_exc()) 
     return previousdaydata
 
+def getStockVolatility(session,stock):
+    dailyvolatility = 0
+    try:       
+        api_url = "/quote-derivative?symbol="+formatURL(stock)
+        json_data = requestURLdata(session,api_url)        
+        dailyvolatility = json_data['stocks'][0]['marketDeptOrderBook']['otherInfo']['dailyvolatility']
+    except:
+        print(traceback.format_exc())
+    return dailyvolatility
+
 def FormatStockData(stockdata,formattype):
     formatteddata = {}
     if formattype == 'LIVE':
@@ -121,3 +131,7 @@ def FormatStockData(stockdata,formattype):
         
     return formatteddata
     
+
+if __name__ == "__main__":
+    session = SessionStart()
+
