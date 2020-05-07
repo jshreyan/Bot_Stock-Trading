@@ -1,128 +1,7 @@
-import requests
-from bs4 import BeautifulSoup as soup
+import nseapi
 import datetime
 import time
-import json
 import traceback
-
-session = requests.session()
-
-URL = "https://www.nseindia.com/api"
-INDEX = "NIFTY 50"
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'}
-CHANGEPERCENT = 0.3
-
-start = time.time()
-
-session = requests.Session() 
-
-
-###############################################
-##################NSE API######################
-
-def requestURLdata(URLEXT):
-    try:
-        time.sleep(0.2)
-        #url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
-        url = URL + URLEXT
-        #print('URL:',url)
-        resp = session.get(url,headers=headers)
-        json_data = resp.json()
-        resp.close()
-    except:
-        print(traceback.format_exc())         
-
-    return json_data
-
-def formatURL(keyword):
-    keyword = keyword.replace('&','%26')
-    keyword = keyword.replace(' ','%20')
-    return keyword
-
-def getLiveQuotes():
-    stocklive = {}
-    try:
-        api_url = "/equity-stockIndices?index="+formatURL(INDEX)
-        json_data = requestURLdata(api_url)
-        stockdata = json_data['data']
-        stocklive = FormatStockData(stockdata,'LIVE')
-    except:
-        print(traceback.format_exc())         
-
-    return stocklive
-
-def UpdateLiveQuotes(updatestocks):
-    try:
-        stocklive = getLiveQuotes()
-        for stock in updatestocks:
-            updatestocks[stock] = stocklive[stock]
-    except:
-        print(traceback.format_exc())         
-
-    return updatestocks
-
-def getTradeInfo(stock):
-    tradeinfo = {}
-    try:
-        api_url = "/quote-equity?symbol="+formatURL(stock)+"&section=trade_info"
-        json_data = requestURLdata(api_url)
-        stockdata = json_data['marketDeptOrderBook']
-        tradeinfo = FormatStockData(stockdata,'TRADE')
-    except:
-        print(traceback.format_exc())         
-    return tradeinfo
-
-def getHistoricDataNSE(stock):
-    stockHist = {}
-    try:       
-        api_url = "/historical/cm/equity?symbol="+formatURL(stock)
-        json_data = requestURLdata(api_url)        
-        stockdata = json_data['data']
-        stockHist = FormatStockData(stockdata,'HIST')
-    except:
-        print(traceback.format_exc())
-    return stockHist
-
-def getPreviousDayData(stock):
-    previousdaydata = {}
-    try:
-        stockHist = getHistoricDataNSE(stock)
-        previousdaydata = stockHist[0]   
-    except:
-        print(traceback.format_exc()) 
-    return previousdaydata
-
-def FormatStockData(stockdata,formattype):
-    formatteddata = {}
-    if formattype == 'LIVE':
-        for i,stock in enumerate(stockdata):
-            if stock['symbol'] == INDEX:
-                continue
-            formatteddata[stock['symbol']] = {'LTP':stock['lastPrice'],
-                                              'PCT':stock['pChange'],
-                                              'OPEN':stock['open'],
-                                              'HIGH':stock['dayHigh'],
-                                              'LOW':stock['dayLow'],
-                                              'PREVCLOSE':stock['previousClose'],
-                                              'VOL':stock['totalTradedVolume']}
-
-    elif  formattype == 'HIST':
-        for i,stock in enumerate(stockdata):
-            formatteddata[i] = {'OPEN':stock['CH_OPENING_PRICE'],
-                                'CLOSE':stock['CH_CLOSING_PRICE'],
-                                'HIGH':stock['CH_TRADE_HIGH_PRICE'],
-                                'LOW':stock['CH_TRADE_LOW_PRICE'],
-                                'VOL':stock['CH_TOT_TRADED_VAL'],
-                                'VWAP':stock['VWAP'],
-                                'DATE':stock['CH_TIMESTAMP']}
-
-    elif  formattype == 'TRADE':
-        formatteddata = {'BUYQUAN':stockdata['totalBuyQuantity'],
-                         'SELLQUAN':stockdata['totalSellQuantity'],
-                         'TOTALVOL':stockdata['tradeInfo']['totalTradedVolume']}
-        
-    return formatteddata
-
 
 ###############################################
 ##################Stratergy####################
@@ -143,13 +22,15 @@ def process_ohl_algo(stocklive):
     stocksval = {}
     stocksUpd = {}
     try:
-        for key,val in stocklive.items():
+        for stock,val in stocklive.items():
             if val['OPEN'] == val['LOW']:              
-                stocksval[key] = calcPricePoints(val['HIGH'],'BUY'),val,{'VWAP':getPreviousDayData(key)['VWAP'],'TOTALVOL':getTradeInfo(key)['TOTALVOL']}
-                stocksUpd[key] = val
+                stocksval[stock] = calcPricePoints(val['HIGH'],'BUY'),val,{'VWAP':nseapi.getPreviousDayData(session,stock)['VWAP'],
+                                                                         'TOTALVOL':nseapi.getTradeInfo(session,stock)['TOTALVOL']}
+                stocksUpd[stock] = val
             if val['OPEN'] == val['HIGH']:              
-                stocksval[key] = calcPricePoints(val['LOW'],'SELL'),val,{'VWAP':getPreviousDayData(key)['VWAP'],'TOTALVOL':getTradeInfo(key)['TOTALVOL']}
-                stocksUpd[key] = val
+                stocksval[stock] = calcPricePoints(val['LOW'],'SELL'),val,{'VWAP':nseapi.getPreviousDayData(session,stock)['VWAP'],
+                                                                         'TOTALVOL':nseapi.getTradeInfo(session,stock)['TOTALVOL']}
+                stocksUpd[stock] = val
             
     except:
         print(traceback.format_exc())
@@ -192,8 +73,11 @@ def findStocks(stocklive):
         print(datetime.datetime.now(),'OHL Needs market to be closed.')
     return stocksval,stocksUpd
 
+start = time.time()
 
 if __name__ == "__main__":
+
+    session = nseapi.SessionStart()
     
     FINDTRADESIG = False
     if monitorTimes('09:15','15:15'):
@@ -203,18 +87,17 @@ if __name__ == "__main__":
         print(datetime.datetime.now(),'Market Closed.')
         FINDTRADESIG = True
 
-    StocksLive = getLiveQuotes()
+    StocksLive = nseapi.getLiveQuotes(session)
     StocksTrade,StocksUpdate = findStocks(StocksLive)
     if len(StocksTrade) > 0:
         PrettyPrint(StocksTrade)  
     else:
         print(datetime.datetime.now(),'No Stocks to buy.')
 
-
+    nseapi.SessionClose(session)
 
 
 print("\n\nEnd of Script.")
-session.close()
 end = time.time()
 print('Time taken:',round(end - start,2), 'Seconds')
 
