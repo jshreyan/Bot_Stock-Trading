@@ -2,11 +2,16 @@ import nseapi
 import datetime
 import time
 import traceback
+import tradingapi as ta
+
+TRADETIME = '09:45'
+SQUAREOFFTIME = '14:45'
+TARGETPCT = 0.8
 
 ###############################################
 ##################Stratergy####################
 def calcPricePoints(tradetype,stockval,stockinfo):
-    GAINPCT = (abs(stockinfo['DAILYVOLATILITY'] - abs(stockval['PCT']))*0.75)/100
+    GAINPCT = (abs(stockinfo['DAILYVOLATILITY'] - abs(stockval['PCT']))*TARGETPCT)/100
     #print('GAINPCT',GAINPCT,'DAILYVOLATILITY',stockinfo['DAILYVOLATILITY'],'PCT',stockval['PCT'])
     if 'BUY' in tradetype:
         BUY = stockval['LTP']
@@ -20,9 +25,9 @@ def calcPricePoints(tradetype,stockval,stockinfo):
 
 
 def getstockinfo(stock):
-    stockinfo = {#'VWAP':nseapi.getPreviousDayData(session,stock)['VWAP'],
-                 #'TOTALVOL':nseapi.getTradeInfo(session,stock)['TOTALVOL'],
-                 'DAILYVOLATILITY':nseapi.getStockVolatility(session,stock)}
+    stockinfo = {#'VWAP':nseapi.getPreviousDayData(stock)['VWAP'],
+                 #'TOTALVOL':nseapi.getTradeInfo(stock)['TOTALVOL'],
+                 'DAILYVOLATILITY':nseapi.getStockVolatility(stock)}
     return stockinfo
 
 def processAlgo_OHL(stocklive):
@@ -36,7 +41,7 @@ def processAlgo_OHL(stocklive):
                 if stockval['OPEN'] == stockval['HIGH']:
                     tradetype = 'SELL'
 
-                if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/0.6:
+                if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/0.4:
                     tradetype = tradetype+'-STRONG-VOLATILITY'               
                     
                 stockstrade[stock] = calcPricePoints(tradetype,stockval,stockinfo),stockval,stockinfo
@@ -45,61 +50,43 @@ def processAlgo_OHL(stocklive):
         print(traceback.format_exc())
     return stockstrade, stocksfinal
 
-def monitorTimes(starttime,endtime):
-    now = datetime.datetime.now()
-    if starttime == 'NA':
-        starttime = '00:00'
-    if endtime == 'NA':
-        endtime = '23:59'
-    starttimedt = now.replace(hour=int(starttime[0:2]), minute=int(starttime[3:5]), second=0, microsecond=0)
-    endtimedt =  now.replace(hour=int(endtime[0:2]), minute=int(endtime[3:5]), second=0, microsecond=0)   
-    if starttimedt <= now <= endtimedt:
-        return True
-    else:
-        return False
-
 def tradeSignalOHL():
     FINDTRADESIG = False
-    #if monitorTimes('09:15','15:15'):    
-    if monitorTimes('09:44','15:15'):
+    #if ta.monitorTimes('09:15','15:15'):    
+    if ta.monitorTimes(TRADETIME,'15:15'):
         print(datetime.datetime.now(),'Market Open & Algo Triggered.')
         FINDTRADESIG = True
-    #if monitorTimes('00:00','09:14') or monitorTimes('15:15','23:59'):
+    #if ta.monitorTimes('00:00','09:14') or monitorTimes('15:15','23:59'):
     else:
         #print(datetime.datetime.now(),'Market Closed.')
-        FINDTRADESIG = False
+        FINDTRADESIG = True
     return FINDTRADESIG
-
-def PrettyPrint(stocks):
-    print(datetime.datetime.now(),'Stocks:\n')
-    for stockkey,stockval in stocks.items():
-        #print('',stockkey,'=>',stockval)
-        print('  '+stockkey+':')
-        print('             ',stockval[0])
-        print('             ',stockval[1])
-        print('             ',stockval[2])
         
 def findStocks():
     StocksLive, StocksTrade, StocksUpdate, StocksTradeEnter = {},{},{}, False
     try:
-        StocksLive = nseapi.getLiveQuotes(session)
+        StocksLive = nseapi.getLiveQuotes()
         StocksTrade,StocksUpdate = processAlgo_OHL(StocksLive)
         if len(StocksTrade) > 0:
-            PrettyPrint(StocksTrade)
+            ta.PrettyPrint(StocksTrade)
             StocksTradeEnter = True
         else:
             print(datetime.datetime.now(),'No Stocks to buy.')
             StocksTradeEnter = False
     except:
-        print('ERROR')
+        print(traceback.format_exc())
     return StocksTradeEnter, StocksLive, StocksTrade, StocksUpdate
 
+def getFinalResult(StocksTrade):
+    stocksfinaltrades = ta.getProfitLoss(StocksTrade)
+    totalprofitloss = ta.getTotalProfitLoss(stocksfinaltrades)
+    return stocksfinaltrades,totalprofitloss
 
 print('\n')
 start = time.time()
 
 if __name__ == "__main__":
-    session = nseapi.SessionStart()
+    nseapi.SessionStart()
     StocksTradeEnter = False
 
     while not StocksTradeEnter:
@@ -110,10 +97,12 @@ if __name__ == "__main__":
             StocksTradeEnter,StocksLive,StocksTrade,StocksUpdate = findStocks()
         if not StocksTradeEnter:
             time.sleep(5)
-            
-    nseapi.SessionClose(session)
 
+    
+    nseapi.SessionClose()
 
+#stocksfinaltrades, totalprofitloss = getFinalResult(StocksTrade)
+ 
 print('\n')
 print(datetime.datetime.now(),'End of Script.\n')
 end = time.time()

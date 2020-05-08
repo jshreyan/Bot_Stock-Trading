@@ -2,29 +2,32 @@ import requests
 import json
 import traceback
 import time
+import datetime
 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'}
 URL = "https://www.nseindia.com/api"
 INDEX = "NIFTY 50"
 
+SESSION = None
+
 
 def SessionStart():
-    session = requests.session()
-    return session
+    global SESSION
+    SESSION = requests.session()
 
-def SessionClose(session):
-    session.close()
+def SessionClose():
+    SESSION.close()
 
 ###############################################
 ##################NSE API######################
 
-def requestURLdata(session,URLEXT):
+def requestURLdata(URLEXT):
     try:
         time.sleep(0.2)
         #url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
         url = URL + URLEXT
         #print('URL:',url)
-        resp = session.get(url,headers=headers)
+        resp = SESSION.get(url,headers=headers)
         json_data = resp.json()
         resp.close()
     except:
@@ -37,11 +40,11 @@ def formatURL(keyword):
     keyword = keyword.replace(' ','%20')
     return keyword
 
-def getLiveQuotes(session):
+def getLiveQuotes():
     stocklive = {}
     try:
         api_url = "/equity-stockIndices?index="+formatURL(INDEX)
-        json_data = requestURLdata(session,api_url)
+        json_data = requestURLdata(api_url)
         stockdata = json_data['data']
         stocklive = FormatStockData(stockdata,'LIVE')
     except:
@@ -59,46 +62,56 @@ def UpdateLiveQuotes(updatestocks):
 
     return updatestocks
 
-def getTradeInfo(session,stock):
+def getTradeInfo(stock):
     tradeinfo = {}
     try:
         api_url = "/quote-equity?symbol="+formatURL(stock)+"&section=trade_info"
-        json_data = requestURLdata(session,api_url)
+        json_data = requestURLdata(api_url)
         stockdata = json_data['marketDeptOrderBook']
         tradeinfo = FormatStockData(stockdata,'TRADE')
     except:
         print(traceback.format_exc())         
     return tradeinfo
 
-def getHistoricDataNSE(session,stock):
+def getHistoricDataNSE(stock):
     stockHist = {}
     try:       
         api_url = "/historical/cm/equity?symbol="+formatURL(stock)
-        json_data = requestURLdata(session,api_url)        
+        json_data = requestURLdata(api_url)        
         stockdata = json_data['data']
         stockHist = FormatStockData(stockdata,'HIST')
     except:
         print(traceback.format_exc())
     return stockHist
 
-def getPreviousDayData(session,stock):
+def getPreviousDayData(stock):
     previousdaydata = {}
     try:
-        stockHist = getHistoricDataNSE(session,stock)
+        stockHist = getHistoricDataNSE(stock)
         previousdaydata = stockHist[0]   
     except:
         print(traceback.format_exc()) 
     return previousdaydata
 
-def getStockVolatility(session,stock):
+def getStockVolatility(stock):
     dailyvolatility = 0
     try:       
         api_url = "/quote-derivative?symbol="+formatURL(stock)
-        json_data = requestURLdata(session,api_url)        
+        json_data = requestURLdata(api_url)        
         dailyvolatility = json_data['stocks'][0]['marketDeptOrderBook']['otherInfo']['dailyvolatility']
     except:
         print(traceback.format_exc())
     return dailyvolatility
+
+def getDayTrade(stock):
+    DayTrade = {}
+    try: 
+        api_url = '/chart-databyindex?index='+formatURL(stock)+'EQN'
+        json_data = requestURLdata(api_url)
+        DayTrade = json_data['grapthData']
+    except:
+        print(traceback.format_exc())        
+    return DayTrade
 
 def FormatStockData(stockdata,formattype):
     formatteddata = {}
@@ -133,5 +146,19 @@ def FormatStockData(stockdata,formattype):
     
 
 if __name__ == "__main__":
-    session = SessionStart()
+    SessionStart()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
