@@ -3,14 +3,49 @@ import datetime
 import time
 import traceback
 import tradingapi as ta
+import math
 
 TRADETIME = '09:45'
-SQUAREOFFTIME = '14:45'
+ta.TRADETIME = TRADETIME
+SQUAREOFFTIME = '10:00'
+ta.SQUAREOFFTIME = SQUAREOFFTIME
+
 TARGETPCT = 0.8
+STOPLOSSPCT = TARGETPCT/2
+TRADESTRENGTH = 0.4
 
 ###############################################
 ##################Stratergy####################
-def calcPricePoints(tradetype,stockval,stockinfo):
+
+def calcPricePoints(stock,tradetype,stockval,stockinfo):
+    LTPATNINE = ta.getTradeStartPoints(stock)
+    ltppct = round((LTPATNINE - stockval['PREVCLOSE'])/stockval['PREVCLOSE']*100,2)
+    if abs(ltppct)/0.8 > stockinfo['DAILYVOLATILITY']:
+        GAINPCT = 0
+    else:
+        GAINPCT = math.ceil((abs(stockinfo['DAILYVOLATILITY'] - abs(ltppct))*TARGETPCT)) #TARGETPCT
+
+    if 'STRONG' in tradetype:
+        PRIORITY = 1
+    elif GAINPCT != 0:
+        PRIORITY = 2
+    elif GAINPCT == 0:
+        PRIORITY = 3
+  
+    #print('GAINPCT',GAINPCT,'DAILYVOLATILITY',stockinfo['DAILYVOLATILITY'],'PCT',stockval['PCT'])
+    if 'BUY' in tradetype:
+        BUY = LTPATNINE
+        STOPLOSS = stockval['LOW'] #round(BUY-((STOPLOSSPCT/100)*BUY),2)
+        TARGET = round(BUY+((GAINPCT/100)*BUY),2)
+        pricepoints = {'PRIORITY':PRIORITY,'TYPE': tradetype, 'PRICE':BUY, 'TARGET':TARGET, 'STOPLOSS':stockval['LOW'],'TRADEPCT':ltppct,'EXPECTEDGAIN':GAINPCT}
+    if 'SELL' in tradetype:
+        SELL = LTPATNINE
+        STOPLOSS = stockval['HIGH'] #round(SELL+((STOPLOSSPCT/100)*SELL),2)
+        TARGET = round(SELL-((GAINPCT/100)*SELL),2)
+        pricepoints = {'PRIORITY':PRIORITY,'TYPE': tradetype, 'PRICE':SELL, 'TARGET':TARGET, 'STOPLOSS':stockval['HIGH'],'TRADEPCT':ltppct,'EXPECTEDGAIN':GAINPCT}
+    return pricepoints
+
+def calcPricePointsog(tradetype,stockval,stockinfo):
     GAINPCT = (abs(stockinfo['DAILYVOLATILITY'] - abs(stockval['PCT']))*TARGETPCT)/100
     #print('GAINPCT',GAINPCT,'DAILYVOLATILITY',stockinfo['DAILYVOLATILITY'],'PCT',stockval['PCT'])
     if 'BUY' in tradetype:
@@ -41,10 +76,11 @@ def processAlgo_OHL(stocklive):
                 if stockval['OPEN'] == stockval['HIGH']:
                     tradetype = 'SELL'
 
-                if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/0.4:
+                if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/TRADESTRENGTH:
                     tradetype = tradetype+'-STRONG-VOLATILITY'               
                     
-                stockstrade[stock] = calcPricePoints(tradetype,stockval,stockinfo),stockval,stockinfo
+                #stockstrade[stock] = calcPricePointsog(tradetype,stockval,stockinfo),stockval,stockinfo
+                stockstrade[stock] = calcPricePoints(stock,tradetype,stockval,stockinfo),stockval,stockinfo
                 stocksfinal[stock] = stockval
     except:
         print(traceback.format_exc())
@@ -98,11 +134,16 @@ if __name__ == "__main__":
         if not StocksTradeEnter:
             time.sleep(5)
 
-    
-    nseapi.SessionClose()
+    #nseapi.SessionClose()
+print('\nStocksTrade:',datetime.datetime.now(),'\n',StocksTrade)
 
-#stocksfinaltrades, totalprofitloss = getFinalResult(StocksTrade)
- 
+print('\nProfit and Loss:')
+MARGIN = ta.getQuotesMargin()
+ta.MARGIN = MARGIN 
+#minprice = ta.getMinBuyQuantity(StocksTrade)
+stocksfinaltrades, totalprofitloss = getFinalResult(StocksTrade)
+
+
 print('\n')
 print(datetime.datetime.now(),'End of Script.\n')
 end = time.time()
