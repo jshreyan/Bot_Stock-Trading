@@ -14,6 +14,8 @@ TARGETPCT = 0.8
 STOPLOSSPCT = TARGETPCT/2
 TRADESTRENGTH = 0.4
 
+#TEST = True
+
 ###############################################
 ##################Stratergy####################
 
@@ -45,17 +47,29 @@ def calcPricePoints(stock,tradetype,stockval,stockinfo):
         pricepoints = {'PRIORITY':PRIORITY,'TYPE': tradetype, 'PRICE':SELL, 'TARGET':TARGET, 'STOPLOSS':stockval['HIGH'],'TRADEPCT':ltppct,'EXPECTEDGAIN':GAINPCT}
     return pricepoints
 
-def calcPricePointsog(tradetype,stockval,stockinfo):
+def calcPricePointsLive(tradetype,stockval,stockinfo):
     GAINPCT = (abs(stockinfo['DAILYVOLATILITY'] - abs(stockval['PCT']))*TARGETPCT)/100
-    #print('GAINPCT',GAINPCT,'DAILYVOLATILITY',stockinfo['DAILYVOLATILITY'],'PCT',stockval['PCT'])
+
+    if abs(stockval['PCT'])/0.8 > stockinfo['DAILYVOLATILITY']:
+        GAINPCT = 0
+    else:
+        GAINPCT = math.ceil((abs(stockinfo['DAILYVOLATILITY'] - abs(stockval['PCT']))*TARGETPCT)) #TARGETPCT
+
+    if 'STRONG' in tradetype:
+        PRIORITY = 1
+    elif GAINPCT != 0:
+        PRIORITY = 2
+    elif GAINPCT == 0:
+        PRIORITY = 3
+
     if 'BUY' in tradetype:
         BUY = stockval['LTP']
-        TARGET = round(BUY+(GAINPCT*BUY),2)
-        pricepoints = {'TYPE': tradetype, 'PRICE':BUY, 'TARGET':TARGET, 'STOPLOSS':stockval['LOW']}
+        TARGET = round(BUY+((GAINPCT/100)*BUY),2)
+        pricepoints = {'PRIORITY':PRIORITY,'TYPE': tradetype, 'PRICE':BUY, 'TARGET':TARGET, 'STOPLOSS':stockval['LOW'],'TRADEPCT':stockval['PCT'],'EXPECTEDGAIN':GAINPCT}
     if 'SELL' in tradetype:
         SELL = stockval['LTP']
-        TARGET = round(SELL-(GAINPCT*SELL),2)
-        pricepoints = {'TYPE': tradetype, 'PRICE':SELL, 'TARGET':TARGET, 'STOPLOSS':stockval['HIGH']}
+        TARGET = round(SELL-((GAINPCT/100)*SELL),2)
+        pricepoints = {'PRIORITY':PRIORITY,'TYPE': tradetype, 'PRICE':SELL, 'TARGET':TARGET, 'STOPLOSS':stockval['HIGH'],'TRADEPCT':stockval['PCT'],'EXPECTEDGAIN':GAINPCT}
     return pricepoints
 
 
@@ -79,8 +93,8 @@ def processAlgo_OHL(stocklive):
                 if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/TRADESTRENGTH:
                     tradetype = tradetype+'-STRONG-VOLATILITY'               
                     
-                #stockstrade[stock] = calcPricePointsog(tradetype,stockval,stockinfo),stockval,stockinfo
-                stockstrade[stock] = calcPricePoints(stock,tradetype,stockval,stockinfo),stockval,stockinfo
+                stockstrade[stock] = calcPricePointsLive(tradetype,stockval,stockinfo),stockval,stockinfo
+                #stockstrade[stock] = calcPricePoints(stock,tradetype,stockval,stockinfo),stockval,stockinfo
                 stocksfinal[stock] = stockval
     except:
         print(traceback.format_exc())
