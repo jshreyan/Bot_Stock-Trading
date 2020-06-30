@@ -39,14 +39,16 @@ def getTradeClosePoints(stock,stocktrade):
         if 'BUY' in stocktrade['TYPE']:
             if (price >= stocktrade['TARGET'] or price <= stocktrade['STOPLOSS'] or pricetimedt >= marketclosetime) and pricetimedt>tradestarttime:
                 difference = round(price - stocktrade['PRICE'],2)
-                stocksfinaltrades[stock] = {'TYPE':'LONG','PROFITLOSS':difference,'CLOSETIME':pricetime,'CLOSEPRICE':stocktrade['PRICE']}
+                differencePct = round((difference/stocktrade['PRICE'])*100,2)
+                stocksfinaltrades[stock] = {'TYPE':'LONG','PROFITLOSS':difference,'CLOSETIME':pricetime,'CLOSEPRICE':price,'BUYPRICE':stocktrade['PRICE'],'%PROFITLOSS':differencePct}
                 #print(stock,'::',pricetime,difference)
                 break
                 
         if 'SELL' in stocktrade['TYPE']:
             if (price <= stocktrade['TARGET'] or price >= stocktrade['STOPLOSS'] or pricetimedt >= marketclosetime) and pricetimedt>tradestarttime:
-                difference =  round(stocktrade['PRICE'] - price,2)                
-                stocksfinaltrades[stock] = {'TYPE':'SHORT','PROFITLOSS':difference,'CLOSETIME':pricetime,'CLOSEPRICE':stocktrade['PRICE']}
+                difference =  round(stocktrade['PRICE'] - price,2)
+                differencePct = round((difference/stocktrade['PRICE'])*100,2)
+                stocksfinaltrades[stock] = {'TYPE':'SHORT','PROFITLOSS':difference ,'CLOSETIME':pricetime,'CLOSEPRICE':price,'BUYPRICE':stocktrade['PRICE'],'%PROFITLOSS':differencePct}
                 #print(stock,'::',pricetime,difference)
                 break
             
@@ -70,11 +72,13 @@ def getProfitLoss(stockstrade):
     return stocksfinaltrades
 
 def getTotalProfitLoss(stocksfinaltrades):
-    totalprofitloss = 0
+    totalprofitloss,totalbuy = 0,0
     for stock,stockval in stocksfinaltrades.items():
-        print(stock,'\n',stockval['CLOSETIME'],stockval['TYPE'],stockval['PROFITLOSS'])
-        totalprofitloss  = totalprofitloss + stockval['PROFITLOSS']
-    print('\nTOTALPROFITLOSS:',round(totalprofitloss,2))
+        print(stock,'\n',stockval['CLOSETIME'],'|',stockval['TYPE'],'|',stockval['PROFITLOSS'],'|',str(stockval['%PROFITLOSS'])+'%')
+        totalprofitloss  +=  stockval['PROFITLOSS']
+        totalbuy += stockval['BUYPRICE']
+    totalpctprofitloss = round((totalprofitloss/totalbuy)*100,2)
+    print('\nTOTALPROFITLOSS:',round(totalprofitloss,2),'/',round(totalbuy,2),' = ',str(totalpctprofitloss)+'%')
     return round(totalprofitloss,2)
 
 def getQuotesMargin():

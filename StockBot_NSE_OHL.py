@@ -5,9 +5,9 @@ import traceback
 import tradingapi as ta
 import math
 
-TRADETIME = '09:45'
+TRADETIME = '09:25'
 ta.TRADETIME = TRADETIME
-SQUAREOFFTIME = '10:00'
+SQUAREOFFTIME = '12:00'
 ta.SQUAREOFFTIME = SQUAREOFFTIME
 
 TARGETPCT = 0.8
@@ -93,8 +93,8 @@ def processAlgo_OHL(stocklive):
                 if stockinfo['DAILYVOLATILITY'] > abs(stockval['PCT'])/TRADESTRENGTH:
                     tradetype = tradetype+'-STRONG-VOLATILITY'               
                     
-                stockstrade[stock] = calcPricePointsLive(tradetype,stockval,stockinfo),stockval,stockinfo
-                #stockstrade[stock] = calcPricePoints(stock,tradetype,stockval,stockinfo),stockval,stockinfo
+                #stockstrade[stock] = calcPricePointsLive(tradetype,stockval,stockinfo),stockval,stockinfo
+                stockstrade[stock] = calcPricePoints(stock,tradetype,stockval,stockinfo),stockval,stockinfo
                 stocksfinal[stock] = stockval
     except:
         print(traceback.format_exc())
@@ -154,7 +154,7 @@ print('\nStocksTrade:',datetime.datetime.now(),'\n',StocksTrade)
 print('\nProfit and Loss:')
 MARGIN = ta.getQuotesMargin()
 ta.MARGIN = MARGIN 
-#minprice = ta.getMinBuyQuantity(StocksTrade)
+##minprice = ta.getMinBuyQuantity(StocksTrade)
 stocksfinaltrades, totalprofitloss = getFinalResult(StocksTrade)
 
 
